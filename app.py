@@ -1,28 +1,33 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
-# Configuración inicial de la página (ancho completo y diseño moderno)
+# Configuración inicial de la página (ancho completo)
 st.set_page_config(
-    page_title="Dashboard de Ventas de Autos",
+    page_title="Dashboard de Ventas de Autos - Modo Oscuro",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS personalizados para los títulos
+# Estilos CSS personalizados para Modo Oscuro
 st.markdown(
     """
     <style>
+    .stApp {
+        background-color: #0E1117;
+        color: #FAFAFA;
+    }
     .main-header {
         font-size: 2.3rem;
-        color: #1E3A8A;
+        color: #60A5FA;
         font-weight: 700;
         margin-bottom: 0rem;
     }
     .sub-header {
         font-size: 1.1rem;
-        color: #64748B;
+        color: #94A3B8;
         margin-bottom: 1.5rem;
     }
     </style>
@@ -55,7 +60,7 @@ anios = st.sidebar.multiselect(
 
 st.sidebar.markdown("---")
 st.sidebar.info(
-    "💡 **Tip:** Pasa el cursor sobre los gráficos para ver los detalles interactivos."
+    "💡 **Tip:** Los gráficos combinan barras y líneas para facilitar el análisis."
 )
 
 # Filtrado de datos
@@ -69,11 +74,11 @@ if filtrado.empty:
 
 # --- TÍTULO Y ENCABEZADO ---
 st.markdown(
-    '<p class="main-header">🚗 Dashboard Interactivo de Ventas de Autos</p>',
+    '<p class="main-header">🚗 Dashboard Interactivo - Modo Noche</p>',
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<p class="sub-header">Exploración visual del rendimiento comercial y tendencias del mercado automotriz.</p>',
+    '<p class="sub-header">Análisis visual avanzado del rendimiento de ventas automotrices.</p>',
     unsafe_allow_html=True,
 )
 
@@ -101,13 +106,13 @@ st.markdown("---")
 
 # --- PESTAÑAS DE NAVEGACIÓN ---
 tab1, tab2, tab3 = st.tabs(
-    ["📊 Ventas por Color", "📈 Evolución Temporal", "📋 Tabla y Descarga"]
+    ["📊 Ventas por Color (Combinado)", "📈 Evolución Temporal (Combinado)", "📋 Tabla y Descarga"]
 )
 
 with tab1:
-    st.subheader("Ventas Totales Acumuladas por Color")
+    st.subheader("Ventas Totales por Color (Barras y Línea)")
     st.write(
-        "Gráfico interactivo que muestra el volumen total de ventas agrupado por cada color seleccionado."
+        "Visualización combinada de barras con una línea de tendencia superpuesta para evaluar el volumen total por color."
     )
 
     por_color = (
@@ -117,46 +122,89 @@ with tab1:
         .sort_values(by="unidades", ascending=False)
     )
 
-    fig_color = px.bar(
-        por_color,
-        x="color",
-        y="unidades",
-        color="color",
-        text="unidades",
-        color_discrete_sequence=px.colors.qualitative.Prism,
-        labels={"color": "Color", "unidades": "Unidades Vendidas"},
+    # Gráfico combinado: Barras + Línea usando Graph Objects de Plotly
+    fig_color = go.Figure()
+    
+    # Añadir barras
+    fig_color.add_trace(
+        go.Bar(
+            x=por_color["color"],
+            y=por_color["unidades"],
+            name="Unidades (Barras)",
+            marker_color="#3B82F6",
+            text=por_color["unidades"],
+            textposition="outside",
+        )
     )
-    fig_color.update_traces(textposition="outside")
-    fig_color.update_layout(showlegend=False, xaxis_title="", yaxis_title="Unidades")
+    
+    # Añadir línea con los mismos datos
+    fig_color.add_trace(
+        go.Scatter(
+            x=por_color["color"],
+            y=por_color["unidades"],
+            name="Tendencia (Línea)",
+            mode="lines+markers",
+            line=dict(color="#F43F5E", width=3),
+            marker=dict(size=8),
+        )
+    )
+
+    fig_color.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis_title="",
+        yaxis_title="Unidades",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(t=40, b=20, l=20, r=20),
+    )
     st.plotly_chart(fig_color, use_container_width=True)
 
 with tab2:
-    st.subheader("Evolución Mensual de Ventas")
+    st.subheader("Evolución Mensual (Líneas y Barras de Fondo)")
     st.write(
-        "Compara el comportamiento temporal de las ventas mes a mes según los colores activos."
+        "Evolución temporal por color con líneas de tendencia acompañadas de barras mensuales de fondo."
     )
 
     pivot = filtrado.pivot_table(
         index="fecha", columns="color", values="unidades", aggfunc="sum"
     ).reset_index()
 
-    fig_line = px.line(
-        pivot,
-        x="fecha",
-        y=pivot.columns[1:],
-        markers=True,
-        labels={
-            "value": "Unidades Vendidas",
-            "fecha": "Fecha",
-            "variable": "Color",
-        },
-        color_discrete_sequence=px.colors.qualitative.Bold,
-    )
+    fig_line = go.Figure()
+
+    # Añadir barras semitransparentes de fondo para cada color
+    for col in pivot.columns[1:]:
+        fig_line.add_trace(
+            go.Bar(
+                x=pivot["fecha"],
+                y=pivot[col],
+                name=f"{col} (Barras)",
+                opacity=0.3,
+            )
+        )
+
+    # Añadir líneas encima
+    for col in pivot.columns[1:]:
+        fig_line.add_trace(
+            go.Scatter(
+                x=pivot["fecha"],
+                y=pivot[col],
+                name=f"{col} (Línea)",
+                mode="lines+markers",
+                line=dict(width=2),
+                marker=dict(size=6),
+            )
+        )
+
     fig_line.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         xaxis_title="",
         yaxis_title="Unidades",
-        legend_title="Colores",
         hovermode="x unified",
+        legend_title="Series",
+        margin=dict(t=40, b=20, l=20, r=20),
     )
     st.plotly_chart(fig_line, use_container_width=True)
 
